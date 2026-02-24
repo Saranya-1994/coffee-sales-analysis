@@ -1,0 +1,149 @@
+-- ============================================================
+-- Coffee Sales Analysis — SQL Queries
+-- Tools: PostgreSQL | Valentina Studio
+-- Period: March 2024 – March 2025
+-- ============================================================
+
+-- ── STEP 1: DATA PREPARATION ─────────────────────────────────
+
+-- Convert money column from TEXT to NUMERIC
+ALTER TABLE index_1 ALTER COLUMN money TYPE NUMERIC USING money::NUMERIC;
+ALTER TABLE index_2 ALTER COLUMN money TYPE NUMERIC USING money::NUMERIC;
+
+-- Combine 2024 and 2025 tables into unified coffee_sales table
+CREATE TABLE coffee_sales AS
+SELECT date, datetime, cash_type, money::NUMERIC, coffee_name FROM index_1
+UNION ALL
+SELECT date, datetime, cash_type, money::NUMERIC, coffee_name FROM index_2;
+
+-- Verify merged table
+SELECT * FROM coffee_sales LIMIT 20;
+
+
+-- ── STEP 2: REVENUE ANALYSIS ─────────────────────────────────
+
+-- Total sales 2024
+SELECT SUM(money) AS total_sales_2024 FROM public.index_1;
+
+-- Total sales 2025
+SELECT SUM(money) AS total_sales_2025 FROM public.index_2;
+
+-- YoY growth difference
+WITH totals AS (
+    SELECT '2024' AS year, SUM(money) AS sales FROM index_1
+    UNION ALL
+    SELECT '2025', SUM(money) FROM index_2
+)
+SELECT
+    MAX(CASE WHEN year = '2024' THEN sales END) AS sales_2024,
+    MAX(CASE WHEN year = '2025' THEN sales END) AS sales_2025,
+    MAX(CASE WHEN year = '2025' THEN sales END) -
+    MAX(CASE WHEN year = '2024' THEN sales END) AS growth_difference
+FROM totals;
+
+-- Overall revenue summary
+SELECT
+    COUNT(*)             AS total_orders,
+    SUM(money)           AS total_revenue,
+    MIN(money)           AS min_order,
+    MAX(money)           AS max_order,
+    ROUND(AVG(money), 2) AS avg_order_value
+FROM coffee_sales;
+
+
+-- ── STEP 3: PRODUCT ANALYSIS ─────────────────────────────────
+
+-- Top 10 coffee types by total revenue (combined)
+SELECT coffee_name,
+       SUM(money) AS revenue
+FROM coffee_sales
+GROUP BY coffee_name
+ORDER BY revenue DESC
+LIMIT 10;
+
+-- Top 10 coffee types: 2024 vs 2025 comparison
+SELECT
+    COALESCE(a.coffee_name, b.coffee_name) AS coffee,
+    COALESCE(a.total_2024, 0)              AS sales_2024,
+    COALESCE(b.total_2025, 0)              AS sales_2025
+FROM
+    (SELECT coffee_name, SUM(money::NUMERIC) AS total_2024
+     FROM index_1 GROUP BY coffee_name) a
+FULL JOIN
+    (SELECT coffee_name, SUM(money::NUMERIC) AS total_2025
+     FROM index_2 GROUP BY coffee_name) b
+ON a.coffee_name = b.coffee_name
+ORDER BY sales_2024 DESC, sales_2025 DESC
+LIMIT 10;
+
+-- Most popular item by number of orders
+SELECT coffee_name,
+       COUNT(*) AS total_orders
+FROM coffee_sales
+GROUP BY coffee_name
+ORDER BY total_orders DESC;
+
+
+-- ── STEP 4: PAYMENT ANALYSIS ─────────────────────────────────
+
+-- Payment method usage: 2024 vs 2025
+SELECT
+    COALESCE(a.cash_type, b.cash_type) AS cash_type,
+    COALESCE(a.total_2024, 0)          AS count_2024,
+    COALESCE(b.total_2025, 0)          AS count_2025
+FROM
+    (SELECT cash_type, COUNT(*) AS total_2024
+     FROM index_1 GROUP BY cash_type) a
+FULL JOIN
+    (SELECT cash_type, COUNT(*) AS total_2025
+     FROM index_2 GROUP BY cash_type) b
+ON a.cash_type = b.cash_type;
+
+
+-- ── STEP 5: TIME SERIES ANALYSIS ─────────────────────────────
+
+-- Monthly revenue: 2024 vs 2025
+SELECT
+    COALESCE(a.month, b.month) AS month,
+    COALESCE(a.total_2024, 0)  AS sales_2024,
+    COALESCE(b.total_2025, 0)  AS sales_2025
+FROM
+    (SELECT TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
+            SUM(money::NUMERIC) AS total_2024
+     FROM index_1 GROUP BY month) a
+FULL JOIN
+    (SELECT TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
+            SUM(money::NUMERIC) AS total_2025
+     FROM index_2 GROUP BY month) b
+ON a.month = b.month
+ORDER BY month;
+
+-- Month-over-Month Growth (YoY % Growth)
+SELECT
+    COALESCE(a.month, b.month)                                          AS month,
+    COALESCE(a.total_2024, 0)                                           AS sales_2024,
+    COALESCE(b.total_2025, 0)                                           AS sales_2025,
+    COALESCE(b.total_2025, 0) - COALESCE(a.total_2024, 0)              AS difference,
+    ROUND(
+        (COALESCE(b.total_2025, 0) - COALESCE(a.total_2024, 0))
+        / NULLIF(a.total_2024, 0) * 100, 2
+    )                                                                   AS growth_percent
+FROM
+    (SELECT TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
+            SUM(money::NUMERIC) AS total_2024
+     FROM index_1 GROUP BY month) a
+FULL JOIN
+    (SELECT TO_CHAR(TO_DATE(date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
+            SUM(money::NUMERIC) AS total_2025
+     FROM index_2 GROUP BY month) b
+ON a.month = b.month
+ORDER BY month;
+
+-- Daily sales summary
+SELECT
+    date,
+    COUNT(*)   AS total_orders,
+    SUM(money) AS total_revenue
+FROM coffee_sales
+GROUP BY date
+ORDER BY date;
