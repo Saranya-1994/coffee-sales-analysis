@@ -212,7 +212,15 @@ The dashboard includes:
 
 📷 **Dashboard Preview**
 
-<img width="1235" height="699" alt="Image" src="https://github.com/user-attachments/assets/d84df2d9-1163-47a4-966f-f8365a381b27" />
+<img width="711" height="403" alt="Screenshot 2026-03-21 225644" src="https://github.com/user-attachments/assets/3c4d7ea6-d4f8-4c0f-9f86-8ecd1bcdde87" />
+
+## 
+<img width="708" height="399" alt="Screenshot 2026-03-21 225730" src="https://github.com/user-attachments/assets/25f82d4a-d61c-40c0-925f-233e7883a321" />
+
+## 
+<img width="712" height="401" alt="Screenshot 2026-03-21 225811" src="https://github.com/user-attachments/assets/bf4132ba-8e0d-4820-80d8-1f76586f01f3" />
+
+
 
 
 
